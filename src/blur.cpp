@@ -10,7 +10,7 @@
 // KConfigSkeleton
 #include "blurconfig.h"
 #include "settings.h"
-
+#include <kwin/scene/windowitem.h>
 #include "core/pixelgrid.h"
 #include "core/rendertarget.h"
 #include "core/renderviewport.h"
