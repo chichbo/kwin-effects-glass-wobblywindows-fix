@@ -775,19 +775,16 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 
     const int vertexCount = effectiveShape.size() * 6;
     // 1. Use the correct Plasma 6 accessor
-    WindowQuadList quads;
-    if (auto item = w->windowItem()) {
-        quads = item->quads();
-    }
-    
+    const WindowQuadList quads = w->data(WindowQuadType).value<WindowQuadList>();
+
     if (auto result = vbo->map<GLVertex2D>(quads.count() * 6 + vertexCount)) {
         auto map = *result;
         size_t vboIndex = 0;
 
-        // 2. Loop through wobbly quads
         for (const WindowQuad &quad : quads) {
             for (int i = 0; i < 6; ++i) {
                 const WindowVertex &v = quad[i];
+                // We map the screen-space vertex to the local blur-texture space
                 map[vboIndex++] = GLVertex2D{
                     .position = QVector2D(v.x() - backgroundRect.x(), v.y() - backgroundRect.y()),
                     .texcoord = QVector2D(v.u(), v.v()),
@@ -796,6 +793,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         } // <--- WAS MISSING IN YOUR SNIPPET
 
         // 3. Loop through the static effective shape
+        if (quads.isEmpty()) {
         for (const KWin::RectF &rect : effectiveShape) {
             const float x0 = rect.left() - backgroundRect.x();
             const float y0 = rect.top() - backgroundRect.y();
