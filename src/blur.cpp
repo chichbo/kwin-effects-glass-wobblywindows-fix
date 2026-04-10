@@ -775,24 +775,18 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 
     const int vertexCount = effectiveShape.size() * 6;
     WindowQuadList quads = w->buildQuads();
-    if (auto result = vbo->map<GLVertex2D>(quads.count() * 6 + vertexCount))
+    if (auto result = vbo->map<GLVertex2D>(quads.count() * 6 + vertexCount)) {
         auto map = *result;
-
         size_t vboIndex = 0;
-
-        // The geometry that will be blurred offscreen, in logical pixels.
-        {
-    WindowQuadList quads = w->buildQuads(); // Grab the wobbly mesh
-    for (const WindowQuad &quad : quads) {
+        for (const WindowQuad &quad : quads) {
         for (int i = 0; i < 6; ++i) {
             const WindowVertex &v = quad[i];
             map[vboIndex++] = GLVertex2D{
-                .position = QVector2D(v.x(), v.y()), // Wobbly position
-                .texcoord = QVector2D(v.u(), v.v()), // Wobbly texture coord
+                .position = QVector2D(v.x() - backgroundRect.x(), v.y() - backgroundRect.y()),
+                .texcoord = QVector2D(v.u(), v.v()),
             };
         }
     }
-}
 
         // The geometry that will be painted on screen, in device pixels.
         for (const QRectF &rect : effectiveShape) {
