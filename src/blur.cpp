@@ -775,7 +775,11 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 
     const int vertexCount = effectiveShape.size() * 6;
     // 1. Use the correct Plasma 6 accessor
-    const WindowQuadList quads = w->data(WindowQuadType).value<WindowQuadList>();
+    // 1. Get the quads. We use the window() accessor for Plasma 6 compatibility.
+    WindowQuadList quads;
+    if (w->window()) {
+        quads = w->window()->quads();
+    }
 
     if (auto result = vbo->map<GLVertex2D>(quads.count() * 6 + vertexCount)) {
         auto map = *result;
@@ -784,40 +788,38 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         for (const WindowQuad &quad : quads) {
             for (int i = 0; i < 6; ++i) {
                 const WindowVertex &v = quad[i];
-                // We map the screen-space vertex to the local blur-texture space
                 map[vboIndex++] = GLVertex2D{
                     .position = QVector2D(v.x() - backgroundRect.x(), v.y() - backgroundRect.y()),
                     .texcoord = QVector2D(v.u(), v.v()),
                 };
             }
-        } // <--- WAS MISSING IN YOUR SNIPPET
+        } // End of quads loop
 
-        // 3. Loop through the static effective shape
+        // 2. Fallback: Only draw the static shape if quads are empty
         if (quads.isEmpty()) {
-        for (const KWin::RectF &rect : effectiveShape) {
-            const float x0 = rect.left() - backgroundRect.x();
-            const float y0 = rect.top() - backgroundRect.y();
-            const float x1 = rect.right() - backgroundRect.x();
-            const float y1 = rect.bottom() - backgroundRect.y();
+            for (const KWin::RectF &rect : effectiveShape) {
+                const float x0 = rect.left() - backgroundRect.x();
+                const float y0 = rect.top() - backgroundRect.y();
+                const float x1 = rect.right() - backgroundRect.x();
+                const float y1 = rect.bottom() - backgroundRect.y();
 
-            const float u0 = (rect.left() - backgroundRect.x()) / backgroundRect.width();
-            const float v0 = 1.0f - (rect.top() - backgroundRect.y()) / backgroundRect.height();
-            const float u1 = (rect.right() - backgroundRect.x()) / backgroundRect.width();
-            const float v1 = 1.0f - (rect.bottom() - backgroundRect.y()) / backgroundRect.height();
+                const float u0 = (rect.left() - backgroundRect.x()) / backgroundRect.width();
+                const float v0 = 1.0f - (rect.top() - backgroundRect.y()) / backgroundRect.height();
+                const float u1 = (rect.right() - backgroundRect.x()) / backgroundRect.width();
+                const float v1 = 1.0f - (rect.bottom() - backgroundRect.y()) / backgroundRect.height();
 
-            // first triangle
-            map[vboIndex++] = GLVertex2D{{x0, y0}, {u0, v0}};
-            map[vboIndex++] = GLVertex2D{{x1, y1}, {u1, v1}};
-            map[vboIndex++] = GLVertex2D{{x0, y1}, {u0, v1}};
-
-            // second triangle
-            map[vboIndex++] = GLVertex2D{{x0, y0}, {u0, v0}};
-            map[vboIndex++] = GLVertex2D{{x1, y0}, {u1, v0}};
-            map[vboIndex++] = GLVertex2D{{x1, y1}, {u1, v1}};
+                map[vboIndex++] = GLVertex2D{{x0, y0}, {u0, v0}};
+                map[vboIndex++] = GLVertex2D{{x1, y1}, {u1, v1}};
+                map[vboIndex++] = GLVertex2D{{x0, y1}, {u0, v1}};
+                map[vboIndex++] = GLVertex2D{{x0, y0}, {u0, v0}};
+                map[vboIndex++] = GLVertex2D{{x1, y0}, {u1, v0}};
+                map[vboIndex++] = GLVertex2D{{x1, y1}, {u1, v1}};
+            }
         }
 
         vbo->unmap();
-    } else {
+    } // End of vbo->map check 
+    else {
         qCWarning(KWIN_BLUR) << "Failed to map vertex buffer";
         return;
     }
