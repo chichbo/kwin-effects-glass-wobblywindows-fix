@@ -1,4 +1,4 @@
-#EXPERIMENTAL MIGHT NOT WORK
+# EXPERIMENTAL MIGHT NOT WORK
 # Warning!!! X11 users
 It appears that X11 support for plasma is "maintenance" mode only. As such, the push to latest code base has broken building against X11. Therefore, the last version of the glass effect to support X11 is 0ae94cf5e709a894a9f1f54544cb17deb7f77d58
 
