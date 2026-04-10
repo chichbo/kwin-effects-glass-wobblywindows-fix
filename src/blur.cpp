@@ -777,25 +777,26 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     // 1. Use the correct Plasma 6 accessor
     // 1. Get the quads. We use the window() accessor for Plasma 6 compatibility.
     WindowQuadList quads;
-    if (w->window()) {
-        quads = w->window()->quads();
+    if (auto item = w->windowItem()) {
+        quads = item->quads();
     }
 
-    if (auto result = vbo->map<GLVertex2D>(quads.count() * 6 + vertexCount)) {
+if (auto result = vbo->map<GLVertex2D>(quads.count() * 6 + vertexCount)) {
         auto map = *result;
         size_t vboIndex = 0;
 
         for (const WindowQuad &quad : quads) {
             for (int i = 0; i < 6; ++i) {
                 const WindowVertex &v = quad[i];
+                // Map to local coordinates by subtracting the backgroundRect offset
                 map[vboIndex++] = GLVertex2D{
                     .position = QVector2D(v.x() - backgroundRect.x(), v.y() - backgroundRect.y()),
                     .texcoord = QVector2D(v.u(), v.v()),
                 };
             }
-        } // End of quads loop
+        }
 
-        // 2. Fallback: Only draw the static shape if quads are empty
+        // 2. Fallback: Only draw static shape if quads are empty
         if (quads.isEmpty()) {
             for (const KWin::RectF &rect : effectiveShape) {
                 const float x0 = rect.left() - backgroundRect.x();
@@ -818,7 +819,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         }
 
         vbo->unmap();
-    } // End of vbo->map check 
+    }
     else {
         qCWarning(KWIN_BLUR) << "Failed to map vertex buffer";
         return;
