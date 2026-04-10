@@ -618,9 +618,9 @@ bool BlurEffect::shouldBlur(const EffectWindow *w, int mask, const WindowPaintDa
     bool scaled = !qFuzzyCompare(data.xScale(), 1.0) && !qFuzzyCompare(data.yScale(), 1.0);
     bool translated = data.xTranslation() || data.yTranslation();
 
-    if ((scaled || (translated || (mask & PAINT_WINDOW_TRANSFORMED))) && !w->data(WindowForceBlurRole).toBool()) {
-        return false;
-    }
+//    if ((scaled || (translated || (mask & PAINT_WINDOW_TRANSFORMED))) && !w->data(WindowForceBlurRole).toBool()) {
+//        return false;
+//    }
 
     return true;
 }
@@ -699,7 +699,8 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         blurShape.translate(std::round(data.xTranslation()), std::round(data.yTranslation()));
     }
 
-    const QRect backgroundRect = blurShape.boundingRect();
+    // 100px gives the window room to stretch without the blur cutting off 
+    const QRect backgroundRect = blurShape.boundingRect().adjusted(-100, -100, 100, 100);
     const QRect scaledBackgroundRect = snapToPixelGrid(scaledRect(backgroundRect, viewport.scale()));
     const QRect deviceBackgroundRect = snapToPixelGrid(viewport.mapToDeviceCoordinates(backgroundRect));
     const auto opacity = data.opacity();
@@ -773,53 +774,25 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     vbo->setAttribLayout(std::span(GLVertexBuffer::GLVertex2DLayout), sizeof(GLVertex2D));
 
     const int vertexCount = effectiveShape.size() * 6;
-    if (auto result = vbo->map<GLVertex2D>(6 + vertexCount)) {
+    WindowQuadList quads = w->buildQuads();
+    if (auto result = vbo->map<GLVertex2D>(quads.count() * 6 + vertexCount))
         auto map = *result;
 
         size_t vboIndex = 0;
 
         // The geometry that will be blurred offscreen, in logical pixels.
         {
-            const QRectF localRect = QRectF(0, 0, backgroundRect.width(), backgroundRect.height());
-
-            const float x0 = localRect.left();
-            const float y0 = localRect.top();
-            const float x1 = localRect.right();
-            const float y1 = localRect.bottom();
-
-            const float u0 = x0 / backgroundRect.width();
-            const float v0 = 1.0f - y0 / backgroundRect.height();
-            const float u1 = x1 / backgroundRect.width();
-            const float v1 = 1.0f - y1 / backgroundRect.height();
-
-            // first triangle
+    WindowQuadList quads = w->buildQuads(); // Grab the wobbly mesh
+    for (const WindowQuad &quad : quads) {
+        for (int i = 0; i < 6; ++i) {
+            const WindowVertex &v = quad[i];
             map[vboIndex++] = GLVertex2D{
-                .position = QVector2D(x0, y0),
-                .texcoord = QVector2D(u0, v0),
-            };
-            map[vboIndex++] = GLVertex2D{
-                .position = QVector2D(x1, y1),
-                .texcoord = QVector2D(u1, v1),
-            };
-            map[vboIndex++] = GLVertex2D{
-                .position = QVector2D(x0, y1),
-                .texcoord = QVector2D(u0, v1),
-            };
-
-            // second triangle
-            map[vboIndex++] = GLVertex2D{
-                .position = QVector2D(x0, y0),
-                .texcoord = QVector2D(u0, v0),
-            };
-            map[vboIndex++] = GLVertex2D{
-                .position = QVector2D(x1, y0),
-                .texcoord = QVector2D(u1, v0),
-            };
-            map[vboIndex++] = GLVertex2D{
-                .position = QVector2D(x1, y1),
-                .texcoord = QVector2D(u1, v1),
+                .position = QVector2D(v.x(), v.y()), // Wobbly position
+                .texcoord = QVector2D(v.u(), v.v()), // Wobbly texture coord
             };
         }
+    }
+}
 
         // The geometry that will be painted on screen, in device pixels.
         for (const QRectF &rect : effectiveShape) {
