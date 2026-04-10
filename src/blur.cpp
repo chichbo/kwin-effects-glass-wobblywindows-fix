@@ -775,7 +775,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 
     const int vertexCount = effectiveShape.size() * 6;
     // 1. Use the correct Plasma 6 accessor
-    WindowQuadList quads = w->window()->buildQuads(); 
+    WindowQuadList quads = w->window()->shadow() ? w->window()->shadow()->shadowQuads() : WindowQuadList();
     
     if (auto result = vbo->map<GLVertex2D>(quads.count() * 6 + vertexCount)) {
         auto map = *result;
